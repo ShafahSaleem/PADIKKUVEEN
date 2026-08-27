@@ -1,0 +1,51 @@
+/* Navy Blue themed styling for Register page */
+.register-container {
+  max-width: 380px;
+  margin: 4rem auto;
+  padding: 2rem;
+  background: #EEF3FB;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(10, 22, 40, 0.15);
+}
+
+.register-form input {
+  width: 100%;
+  padding: 0.6rem;
+  margin-bottom: 1rem;
+  border: 1px solid #1E3A6B;
+  border-radius: 4px;
+  font-size: 1rem;
+  background: #fff;
+  color: #0A1628;
+}
+
+.register-form button {
+  width: 100%;
+  padding: 0.6rem;
+  background: #1B3A6B;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.register-form button:disabled {
+  background: #6B7E99;
+  cursor: not-allowed;
+}
+
+.register-form button:hover:not(:disabled) {
+  background: #0F2044;
+}
+
+.error-message {
+  color: #DC2626;
+  margin-top: 0.5rem;
+}
+
+.success-message {
+  color: #16A34A;
+  margin-top: 0.5rem;
+}

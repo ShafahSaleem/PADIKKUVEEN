@@ -1,0 +1,55 @@
+.result-page {
+  max-width: 700px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background: #EEF3FB;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(10, 22, 40, 0.12);
+}
+
+.result-page h2 {
+  margin-bottom: 1rem;
+  color: #0A1628;
+}
+
+.result-info {
+  background: white;
+  padding: 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  border: 1px solid #1E3A6B;
+}
+
+.result-info p {
+  margin: 0.7rem 0;
+  color: #0A1628;
+}
+
+.percentage {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #1B3A6B;
+}
+
+.back-button {
+  padding: 0.7rem 1.2rem;
+  background: #1B3A6B;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.back-button:hover {
+  background: #0F2044;
+}
+
+.error {
+  color: #DC2626;
+  font-weight: bold;
+}
+
+.loading {
+  text-align: center;
+  color: #1B3A6B;
+}

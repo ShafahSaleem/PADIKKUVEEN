@@ -1,0 +1,370 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --primary: #1B3A6B;
+    --primary-dark: #0F2044;
+    --primary-light: #2D5DA6;
+    --secondary: #4A9EE8;
+    --accent: #6BB5F0;
+    --cream: #EEF3FB;
+    --pure-white: #FFFFFF;
+    --charcoal: #0A1628;
+    --success: #16A34A;
+    --danger: #DC2626;
+    --navy-surface: #152340;
+    --navy-border: #1E3A6B;
+    --navy-hover: #243F72;
+  }
+
+  html {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: #EEF3FB;
+    color: #0A1628;
+  }
+}
+
+/* =========================================================
+   PADIKKUVEEN Animated Tagline Animations
+   ========================================================= */
+
+@keyframes taglineEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes highlightLearn {
+  0%, 14% {
+    color: #1B3A6B;
+    background-color: transparent;
+    border-color: transparent;
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+  }
+  20%, 42% {
+    color: #0F2044;
+    background-color: rgba(214, 228, 247, 0.7);
+    border-color: rgba(27, 58, 107, 0.22);
+    transform: scale(1.025);
+    box-shadow: 0 2px 10px rgba(27, 58, 107, 0.08);
+  }
+  48%, 100% {
+    color: #1B3A6B;
+    background-color: transparent;
+    border-color: transparent;
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+  }
+}
+
+@keyframes highlightPlay {
+  0%, 48% {
+    color: #1B3A6B;
+    background-color: transparent;
+    border-color: transparent;
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+  }
+  54%, 78% {
+    color: #0284C7;
+    background-color: rgba(224, 242, 254, 0.85);
+    border-color: rgba(2, 132, 199, 0.28);
+    transform: scale(1.025);
+    box-shadow: 0 2px 10px rgba(2, 132, 199, 0.12);
+  }
+  84%, 100% {
+    color: #1B3A6B;
+    background-color: transparent;
+    border-color: transparent;
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+  }
+}
+
+.animated-tagline-container {
+  animation: taglineEntrance 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform;
+}
+
+.tagline-part-learn {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid transparent;
+  animation: highlightLearn 5.5s ease-in-out infinite;
+  animation-delay: 0.7s;
+  transition: all 0.35s ease;
+  transform-origin: center;
+}
+
+.tagline-part-play {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid transparent;
+  animation: highlightPlay 5.5s ease-in-out infinite;
+  animation-delay: 0.7s;
+  transition: all 0.35s ease;
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animated-tagline-container {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .tagline-part-learn,
+  .tagline-part-play {
+    animation: none !important;
+    transform: none !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    border-color: transparent !important;
+  }
+}
+
+/* =========================================================
+   Performance Card Entrance, Gradient & Hover Animations
+   ========================================================= */
+
+@keyframes cardEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes subtleGradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.stat-card-animate {
+  opacity: 0;
+  animation: cardEntrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity, background-position;
+  transition: transform 0.22s ease-out, box-shadow 0.22s ease-out, border-color 0.22s ease-out;
+}
+
+/* 1. Exams Completed: Warm Cream → Light Brown (#FFF7E8 → #E8C9A5) */
+.stat-card-gradient-warm {
+  background: linear-gradient(135deg, #FFFDF7 0%, #FFF7E8 40%, #F5DEC5 75%, #E8C9A5 100%);
+  background-size: 200% 200%;
+  animation: cardEntrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards, subtleGradientShift 8s ease-in-out infinite;
+  border-color: rgba(217, 178, 137, 0.5);
+}
+
+/* 2. Exams Passed: Light Green → Cream (#ECFDF3 → #FFFDF7) */
+.stat-card-gradient-success {
+  background: linear-gradient(135deg, #FFFDF7 0%, #ECFDF3 45%, #D1FADF 75%, #ECFDF3 100%);
+  background-size: 200% 200%;
+  animation: cardEntrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards, subtleGradientShift 8s ease-in-out infinite;
+  border-color: rgba(166, 230, 194, 0.55);
+}
+
+/* 3. Average Score: Light Orange → Cream (#FFF1E6 → #FFFDF7) */
+.stat-card-gradient-orange {
+  background: linear-gradient(135deg, #FFFDF7 0%, #FFF1E6 45%, #FED7AA 75%, #FFF1E6 100%);
+  background-size: 200% 200%;
+  animation: cardEntrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards, subtleGradientShift 8s ease-in-out infinite;
+  border-color: rgba(253, 186, 116, 0.55);
+}
+
+/* 4. Best Score: Light Yellow → Cream (#FFF8D6 → #FFFDF7) */
+.stat-card-gradient-yellow {
+  background: linear-gradient(135deg, #FFFDF7 0%, #FFF8D6 45%, #FEF08A 75%, #FFF8D6 100%);
+  background-size: 200% 200%;
+  animation: cardEntrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards, subtleGradientShift 8s ease-in-out infinite;
+  border-color: rgba(250, 204, 21, 0.5);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .stat-card-animate:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 24px -6px rgba(15, 32, 68, 0.08), 0 4px 8px -4px rgba(15, 32, 68, 0.04);
+  }
+  .stat-card-gradient-warm:hover {
+    border-color: rgba(180, 130, 85, 0.65);
+  }
+  .stat-card-gradient-success:hover {
+    border-color: rgba(74, 180, 115, 0.7);
+  }
+  .stat-card-gradient-orange:hover {
+    border-color: rgba(234, 120, 40, 0.65);
+  }
+  .stat-card-gradient-yellow:hover {
+    border-color: rgba(217, 160, 15, 0.65);
+  }
+}
+
+.stat-card-delay-0 {
+  animation-delay: 0ms;
+}
+
+.stat-card-delay-1 {
+  animation-delay: 120ms;
+}
+
+.stat-card-delay-2 {
+  animation-delay: 240ms;
+}
+
+.stat-card-delay-3 {
+  animation-delay: 360ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stat-card-animate,
+  .stat-card-gradient-warm,
+  .stat-card-gradient-success,
+  .stat-card-gradient-orange,
+  .stat-card-gradient-yellow {
+    animation: none !important;
+    background-size: 100% 100% !important;
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .stat-card-animate:hover {
+    transform: none !important;
+    box-shadow: none !important;
+  }
+}
+
+/* =========================================================
+   PADIKKUVEEN Warm Animated Home Page Background & Ambient Lights
+   ========================================================= */
+
+@keyframes warmBackgroundShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  25% {
+    background-position: 50% 100%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  75% {
+    background-position: 50% 0%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes ambientLightFloat1 {
+  0% {
+    transform: translate(0px, 0px) scale(1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translate(35px, -25px) scale(1.12);
+    opacity: 0.45;
+  }
+  100% {
+    transform: translate(0px, 0px) scale(1);
+    opacity: 0.3;
+  }
+}
+
+@keyframes ambientLightFloat2 {
+  0% {
+    transform: translate(0px, 0px) scale(1.08);
+    opacity: 0.25;
+  }
+  50% {
+    transform: translate(-30px, 25px) scale(0.96);
+    opacity: 0.42;
+  }
+  100% {
+    transform: translate(0px, 0px) scale(1.08);
+    opacity: 0.25;
+  }
+}
+
+.home-warm-animated-bg {
+  background: linear-gradient(
+    135deg,
+    #FFFDF7 0%,
+    #DDE8D5 20%,
+    #F4B6A6 40%,
+    #FFD1A6 60%,
+    #FFE8A3 80%,
+    #FFFDF7 100%
+  );
+  background-size: 350% 350%;
+  animation: warmBackgroundShift 18s ease-in-out infinite;
+  will-change: background-position;
+}
+
+.ambient-light-orb-1 {
+  position: absolute;
+  top: 8%;
+  left: 12%;
+  width: 26rem;
+  height: 26rem;
+  background: radial-gradient(circle, rgba(221, 232, 213, 0.5) 0%, rgba(244, 182, 166, 0.25) 45%, rgba(255, 253, 247, 0) 70%);
+  filter: blur(60px);
+  border-radius: 9999px;
+  pointer-events: none;
+  animation: ambientLightFloat1 16s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.ambient-light-orb-2 {
+  position: absolute;
+  bottom: 10%;
+  right: 12%;
+  width: 28rem;
+  height: 28rem;
+  background: radial-gradient(circle, rgba(255, 209, 166, 0.55) 0%, rgba(255, 232, 163, 0.3) 45%, rgba(255, 253, 247, 0) 70%);
+  filter: blur(65px);
+  border-radius: 9999px;
+  pointer-events: none;
+  animation: ambientLightFloat2 18s ease-in-out infinite 1s;
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-warm-animated-bg {
+    background: #FFFDF7 !important;
+    animation: none !important;
+    background-size: 100% 100% !important;
+    background-position: 0% 0% !important;
+  }
+  .ambient-light-orb-1,
+  .ambient-light-orb-2 {
+    display: none !important;
+    animation: none !important;
+    transform: none !important;
+  }
+}
+
+
+
+
+

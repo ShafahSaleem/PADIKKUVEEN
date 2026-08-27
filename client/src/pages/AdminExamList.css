@@ -1,0 +1,67 @@
+.admin-exam-list {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 1rem;
+}
+
+.admin-exam-list table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.admin-exam-list th,
+.admin-exam-list td {
+  border: 1px solid #1E3A6B;
+  padding: 0.5rem;
+  text-align: left;
+  color: #0A1628;
+}
+
+.admin-exam-list th {
+  background-color: #1B3A6B;
+  color: #fff;
+}
+
+.admin-exam-list .create-btn {
+  background: #1B3A6B;
+  color: #fff;
+  border: none;
+  padding: 0.6rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.admin-exam-list .create-btn:hover {
+  background: #0F2044;
+}
+
+.admin-exam-list .edit-btn {
+  margin-right: 0.5rem;
+  color: #1B3A6B;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.admin-exam-list .edit-btn:hover {
+  color: #4A9EE8;
+}
+
+.admin-exam-list .delete-btn {
+  background: #DC2626;
+  color: #fff;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.admin-exam-list .delete-btn:hover {
+  background: #b91c1c;
+}
+
+.admin-exam-list .error {
+  color: #DC2626;
+}
