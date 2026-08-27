@@ -1,19 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
 import toast from 'react-hot-toast';
 import api from '../services/api';
+import { AuthContext } from '../context/AuthContext';
 import { UserIcon, EnvelopeIcon, LockClosedIcon } from '@heroicons/react/24/outline';
 
 const Register = () => {
   const navigate = useNavigate();
+  const { googleLogin } = useContext(AuthContext);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const isGoogleConfigured = Boolean(
+    googleClientId &&
+    !googleClientId.includes('your_google_client_id_here') &&
+    googleClientId.trim() !== ''
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -41,6 +52,38 @@ const Register = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setError('');
+    setGoogleLoading(true);
+    try {
+      if (!credentialResponse?.credential) {
+        throw new Error('No Google credentials received');
+      }
+      const { user } = await googleLogin(credentialResponse.credential);
+      toast.success(`Account ready! Welcome, ${user?.name || user?.email}!`);
+      if (user?.role === 'admin') {
+        navigate('/admin-dashboard');
+      } else {
+        navigate('/student-dashboard');
+      }
+    } catch (err) {
+      console.error('Google Register Error:', err);
+      const msg =
+        err.response?.data?.message ||
+        'Google authentication failed. Please check backend connection or try again.';
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    const msg = 'Google Sign-Up failed or was blocked by browser. Please try again.';
+    setError(msg);
+    toast.error(msg);
   };
 
   return (
@@ -104,12 +147,13 @@ const Register = () => {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || googleLoading}
           className="w-full py-3 bg-[#1B3A6B] hover:bg-[#0F2044] text-white font-bold rounded-xl shadow transition-colors disabled:bg-[#6B7E99] flex items-center justify-center text-sm cursor-pointer"
         >
           {loading ? 'Creating Account...' : 'Register as Student'}
         </button>
 
+        {/* Error / Success Messages */}
         {error && (
           <div className="p-3 bg-red-50 border border-red-200 text-[#DC2626] text-xs font-semibold rounded-xl text-center">
             {error}
@@ -121,6 +165,45 @@ const Register = () => {
             {success}
           </div>
         )}
+
+        {/* OR Divider */}
+        <div className="relative my-4 flex items-center justify-center">
+          <div className="border-t border-gray-300 w-full"></div>
+          <span className="bg-white px-3 text-xs uppercase font-bold text-gray-500 tracking-wider">
+            OR
+          </span>
+          <div className="border-t border-gray-300 w-full"></div>
+        </div>
+
+        {/* Google Sign-Up */}
+        <div className="flex flex-col items-center justify-center w-full min-h-[44px]">
+          {googleLoading ? (
+            <div className="flex items-center justify-center py-2 text-xs font-semibold text-gray-500">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#1B3A6B] mr-2"></div>
+              Creating Google Account...
+            </div>
+          ) : isGoogleConfigured ? (
+            <div className="w-full flex justify-center">
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleError}
+                useOneTap={false}
+                shape="rectangular"
+                size="large"
+                theme="outline"
+                text="signup_with"
+                width="360"
+              />
+            </div>
+          ) : (
+            <div className="w-full text-center p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600">
+              <p className="font-semibold">Google Sign-Up</p>
+              <p className="text-[11px] text-gray-500 mt-0.5">
+                Set <code className="font-mono bg-gray-100 px-1 py-0.5 rounded">VITE_GOOGLE_CLIENT_ID</code> in environment variables to enable.
+              </p>
+            </div>
+          )}
+        </div>
 
         <div className="pt-2 text-center text-xs text-gray-600">
           Already have an account?{' '}

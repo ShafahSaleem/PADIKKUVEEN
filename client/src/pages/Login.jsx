@@ -16,9 +16,12 @@ const Login = () => {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const isConfigured =
-    import.meta.env.VITE_GOOGLE_CLIENT_ID &&
-    !import.meta.env.VITE_GOOGLE_CLIENT_ID.includes('your_google_client_id_here');
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const isGoogleConfigured = Boolean(
+    googleClientId &&
+    !googleClientId.includes('your_google_client_id_here') &&
+    googleClientId.trim() !== ''
+  );
 
   const redirectByRole = (user) => {
     if (user?.role === 'admin') {
@@ -59,7 +62,7 @@ const Login = () => {
       console.error('Google Login Error:', err);
       const msg =
         err.response?.data?.message ||
-        'Google authentication failed. Please verify your Google Client ID or try again.';
+        'Google authentication failed. Please check backend connection or try again.';
       setError(msg);
       toast.error(msg);
     } finally {
@@ -68,7 +71,7 @@ const Login = () => {
   };
 
   const handleGoogleError = () => {
-    const msg = 'Google Sign-In was cancelled or failed. Please try again.';
+    const msg = 'Google Sign-In failed or was blocked by browser. Please check popups/ad-blocker.';
     setError(msg);
     toast.error(msg);
   };
@@ -155,7 +158,7 @@ const Login = () => {
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#1B3A6B] mr-2"></div>
               Authenticating with Google...
             </div>
-          ) : (
+          ) : isGoogleConfigured ? (
             <div className="w-full flex justify-center">
               <GoogleLogin
                 onSuccess={handleGoogleSuccess}
@@ -168,12 +171,13 @@ const Login = () => {
                 width="360"
               />
             </div>
-          )}
-
-          {!isConfigured && (
-            <p className="text-[11px] text-amber-600 font-medium mt-2 text-center bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200">
-              ℹ️ Paste your Google Client ID into <code className="font-mono">client/.env</code> and <code className="font-mono">server/.env</code> to activate Google Sign-In.
-            </p>
+          ) : (
+            <div className="w-full text-center p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600">
+              <p className="font-semibold">Google Sign-In</p>
+              <p className="text-[11px] text-gray-500 mt-0.5">
+                Set <code className="font-mono bg-gray-100 px-1 py-0.5 rounded">VITE_GOOGLE_CLIENT_ID</code> in environment variables to enable.
+              </p>
+            </div>
           )}
         </div>
 
