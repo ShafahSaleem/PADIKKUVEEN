@@ -1,17 +1,32 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
+import toast from 'react-hot-toast';
 import { AuthContext } from '../context/AuthContext';
 import { EyeIcon, EyeSlashIcon, EnvelopeIcon, LockClosedIcon } from '@heroicons/react/24/outline';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login } = useContext(AuthContext);
+  const { login, googleLogin } = useContext(AuthContext);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  const isConfigured =
+    import.meta.env.VITE_GOOGLE_CLIENT_ID &&
+    !import.meta.env.VITE_GOOGLE_CLIENT_ID.includes('your_google_client_id_here');
+
+  const redirectByRole = (user) => {
+    if (user?.role === 'admin') {
+      navigate('/admin-dashboard');
+    } else {
+      navigate('/student-dashboard');
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -19,18 +34,43 @@ const Login = () => {
     setLoading(true);
     try {
       const { user } = await login(email, password);
-      if (user?.role === 'student') {
-        navigate('/student-dashboard');
-      } else if (user?.role === 'admin') {
-        navigate('/admin-dashboard');
-      } else {
-        navigate('/');
-      }
+      toast.success(`Welcome back, ${user?.name || 'User'}!`);
+      redirectByRole(user);
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed');
+      const msg = err.response?.data?.message || 'Login failed. Please check your credentials.';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setError('');
+    setGoogleLoading(true);
+    try {
+      if (!credentialResponse?.credential) {
+        throw new Error('No Google credentials received');
+      }
+      const { user } = await googleLogin(credentialResponse.credential);
+      toast.success(`Signed in with Google as ${user?.name || user?.email}!`);
+      redirectByRole(user);
+    } catch (err) {
+      console.error('Google Login Error:', err);
+      const msg =
+        err.response?.data?.message ||
+        'Google authentication failed. Please verify your Google Client ID or try again.';
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    const msg = 'Google Sign-In was cancelled or failed. Please try again.';
+    setError(msg);
+    toast.error(msg);
   };
 
   return (
@@ -44,6 +84,7 @@ const Login = () => {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Email Input */}
         <div className="relative">
           <EnvelopeIcon className="absolute left-3.5 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
           <input
@@ -55,6 +96,8 @@ const Login = () => {
             className="w-full pl-11 pr-4 py-2.5 border border-[#1B3A6B]/40 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A9EE8] text-sm text-[#0A1628]"
           />
         </div>
+
+        {/* Password Input */}
         <div className="relative">
           <LockClosedIcon className="absolute left-3.5 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
           <input
@@ -68,16 +111,17 @@ const Login = () => {
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            className="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
           >
             {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
           </button>
         </div>
 
+        {/* Normal Sign In Button */}
         <button
           type="submit"
-          disabled={loading}
-          className="w-full py-3 bg-[#1B3A6B] hover:bg-[#0F2044] text-white font-bold rounded-xl shadow transition-colors disabled:bg-[#6B7E99] flex items-center justify-center text-sm"
+          disabled={loading || googleLoading}
+          className="w-full py-3 bg-[#1B3A6B] hover:bg-[#0F2044] text-white font-bold rounded-xl shadow transition-colors disabled:bg-[#6B7E99] flex items-center justify-center text-sm cursor-pointer"
         >
           {loading && (
             <svg className="animate-spin h-5 w-5 mr-2 text-white" viewBox="0 0 24 24">
@@ -88,12 +132,52 @@ const Login = () => {
           {loading ? 'Signing in...' : 'Sign In'}
         </button>
 
+        {/* Error Alert */}
         {error && (
           <div className="p-3 bg-red-50 border border-red-200 text-[#DC2626] text-xs font-semibold rounded-xl text-center">
             {error}
           </div>
         )}
 
+        {/* OR Divider */}
+        <div className="relative my-4 flex items-center justify-center">
+          <div className="border-t border-gray-300 w-full"></div>
+          <span className="bg-white px-3 text-xs uppercase font-bold text-gray-500 tracking-wider">
+            OR
+          </span>
+          <div className="border-t border-gray-300 w-full"></div>
+        </div>
+
+        {/* Continue with Google */}
+        <div className="flex flex-col items-center justify-center w-full min-h-[44px]">
+          {googleLoading ? (
+            <div className="flex items-center justify-center py-2 text-xs font-semibold text-gray-500">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#1B3A6B] mr-2"></div>
+              Authenticating with Google...
+            </div>
+          ) : (
+            <div className="w-full flex justify-center">
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={handleGoogleError}
+                useOneTap={false}
+                shape="rectangular"
+                size="large"
+                theme="outline"
+                text="continue_with"
+                width="360"
+              />
+            </div>
+          )}
+
+          {!isConfigured && (
+            <p className="text-[11px] text-amber-600 font-medium mt-2 text-center bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200">
+              ℹ️ Paste your Google Client ID into <code className="font-mono">client/.env</code> and <code className="font-mono">server/.env</code> to activate Google Sign-In.
+            </p>
+          )}
+        </div>
+
+        {/* Register Link */}
         <div className="pt-2 text-center text-xs text-gray-600">
           Don't have an account?{' '}
           <Link to="/register" className="font-bold text-[#1B3A6B] hover:underline">

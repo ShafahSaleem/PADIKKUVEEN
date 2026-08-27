@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import api from '../services/api';
 import { UserIcon, EnvelopeIcon, LockClosedIcon } from '@heroicons/react/24/outline';
 
 const Register = () => {
   const navigate = useNavigate();
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -30,10 +32,12 @@ const Register = () => {
       const payload = { name, email, password };
       const res = await api.post('/auth/register', payload);
       setSuccess(res.data.message || 'Registration successful! Redirecting to login...');
+      toast.success('Account created successfully!');
       setTimeout(() => navigate('/login'), 1500);
     } catch (err) {
       const msg = err.response?.data?.message || 'Registration failed';
       setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -101,7 +105,7 @@ const Register = () => {
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-3 bg-[#1B3A6B] hover:bg-[#0F2044] text-white font-bold rounded-xl shadow transition-colors disabled:bg-[#6B7E99] flex items-center justify-center text-sm"
+          className="w-full py-3 bg-[#1B3A6B] hover:bg-[#0F2044] text-white font-bold rounded-xl shadow transition-colors disabled:bg-[#6B7E99] flex items-center justify-center text-sm cursor-pointer"
         >
           {loading ? 'Creating Account...' : 'Register as Student'}
         </button>
