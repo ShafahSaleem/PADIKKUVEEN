@@ -23,6 +23,11 @@ const userSchema = new mongoose.Schema(
       enum: ['student', 'admin'],
       default: 'student',
     },
+    status: {
+      type: String,
+      enum: ['active', 'inactive'],
+      default: 'active',
+    },
   },
   {
     timestamps: true,

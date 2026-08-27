@@ -9,6 +9,7 @@ const questionRoutes = require('./routes/questionRoutes'); // added
 const resultRoutes = require('./routes/resultRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 // Load environment variables
 dotenv.config();
@@ -38,6 +39,7 @@ app.use('/api/categories', categoryRoutes); // mounting category routes
 app.use('/api', questionRoutes); // mounting question routes
 app.use('/api/results', resultRoutes); // mounting result routes
 app.use('/api/notifications', notificationRoutes); // mounting notification routes
+app.use('/api/admin', adminRoutes); // mounting admin routes
 
 // Start Server
 app.listen(PORT, '0.0.0.0', () => {
