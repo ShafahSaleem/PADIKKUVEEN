@@ -49,6 +49,19 @@ const AdminDashboard = () => {
   const [activitiesLoading, setActivitiesLoading] = useState(true);
   const [activitiesError, setActivitiesError] = useState('');
 
+  // 4. Mentor Management State
+  const [mentors, setMentors] = useState([]);
+  const [mentorsLoading, setMentorsLoading] = useState(true);
+  const [mentorsError, setMentorsError] = useState('');
+  const [assignmentData, setAssignmentData] = useState({ mentors: [], students: [] });
+  const [assignmentLoading, setAssignmentLoading] = useState(false);
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [selectedMentorForAssign, setSelectedMentorForAssign] = useState(null);
+  const [createMentorModalOpen, setCreateMentorModalOpen] = useState(false);
+  const [newMentorForm, setNewMentorForm] = useState({ name: '', email: '', password: '' });
+  const [creatingMentor, setCreatingMentor] = useState(false);
+  const [actionStudentId, setActionStudentId] = useState(null);
+
   // Fetch real-time statistics from MongoDB
   const fetchStats = useCallback(async () => {
     try {
@@ -97,18 +110,115 @@ const AdminDashboard = () => {
     }
   }, []);
 
+  // Fetch Mentors list from MongoDB
+  const fetchMentors = useCallback(async () => {
+    try {
+      setMentorsLoading(true);
+      setMentorsError('');
+      const response = await api.get('/admin/mentors');
+      const data = response.data?.mentors || [];
+      setMentors(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Failed to fetch mentors:', err);
+      setMentorsError(err.response?.data?.message || 'Failed to load mentors');
+    } finally {
+      setMentorsLoading(false);
+    }
+  }, []);
+
+  // Fetch Mentor assignment list (mentors + students)
+  const fetchAssignments = useCallback(async () => {
+    try {
+      setAssignmentLoading(true);
+      const res = await api.get('/admin/mentor-assignments');
+      setAssignmentData(res.data || { mentors: [], students: [] });
+    } catch (err) {
+      console.error('Failed to fetch mentor assignments:', err);
+      toast.error('Failed to load mentor assignment data');
+    } finally {
+      setAssignmentLoading(false);
+    }
+  }, []);
+
   // Refresh all dashboard data
   const handleRefreshAll = () => {
     fetchStats();
     fetchUsers();
     fetchActivities();
+    fetchMentors();
   };
 
   useEffect(() => {
     fetchStats();
     fetchUsers();
     fetchActivities();
-  }, [fetchStats, fetchUsers, fetchActivities]);
+    fetchMentors();
+  }, [fetchStats, fetchUsers, fetchActivities, fetchMentors]);
+
+  // Open Assign Modal for a specific mentor or general assignment
+  const handleOpenAssignModal = (mentor = null) => {
+    setSelectedMentorForAssign(mentor);
+    setAssignModalOpen(true);
+    fetchAssignments();
+  };
+
+  // Create a new mentor account
+  const handleCreateMentor = async (e) => {
+    e.preventDefault();
+    if (!newMentorForm.name || !newMentorForm.email || !newMentorForm.password) {
+      toast.error('All fields are required');
+      return;
+    }
+    try {
+      setCreatingMentor(true);
+      const res = await api.post('/admin/mentors', newMentorForm);
+      toast.success(res.data?.message || 'Mentor created successfully!');
+      setNewMentorForm({ name: '', email: '', password: '' });
+      setCreateMentorModalOpen(false);
+      fetchMentors();
+      fetchUsers();
+      fetchStats();
+    } catch (err) {
+      console.error('Failed to create mentor:', err);
+      toast.error(err.response?.data?.message || 'Failed to create mentor account');
+    } finally {
+      setCreatingMentor(false);
+    }
+  };
+
+  // Assign or reassign student to mentor
+  const handleAssignStudent = async (studentId, mentorId) => {
+    try {
+      setActionStudentId(studentId);
+      const res = await api.put(`/admin/students/${studentId}/mentor`, { mentorId });
+      toast.success(res.data?.message || 'Mentor assigned successfully');
+      fetchAssignments();
+      fetchMentors();
+      fetchUsers();
+    } catch (err) {
+      console.error('Failed to assign mentor:', err);
+      toast.error(err.response?.data?.message || 'Failed to assign mentor');
+    } finally {
+      setActionStudentId(null);
+    }
+  };
+
+  // Remove mentor assignment from student
+  const handleRemoveMentor = async (studentId) => {
+    try {
+      setActionStudentId(studentId);
+      const res = await api.delete(`/admin/students/${studentId}/mentor`);
+      toast.success(res.data?.message || 'Mentor assignment removed');
+      fetchAssignments();
+      fetchMentors();
+      fetchUsers();
+    } catch (err) {
+      console.error('Failed to remove mentor:', err);
+      toast.error(err.response?.data?.message || 'Failed to remove mentor');
+    } finally {
+      setActionStudentId(null);
+    }
+  };
 
   // Filter users based on search term (name or email) and role
   const filteredUsers = useMemo(() => {
@@ -430,6 +540,7 @@ const AdminDashboard = () => {
               >
                 <option value="all">All Roles</option>
                 <option value="student">🎓 Students</option>
+                <option value="mentor">👨‍🏫 Mentors</option>
                 <option value="admin">⚙️ Admins</option>
               </select>
             </div>
@@ -462,80 +573,47 @@ const AdminDashboard = () => {
                 <th className="py-3.5 px-4 sm:px-6 text-center">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 text-sm bg-white">
+            <tbody className="divide-y divide-gray-100 bg-white">
               {usersLoading ? (
-                // Loading Skeleton Rows
-                Array.from({ length: 4 }).map((_, index) => (
-                  <tr key={index} className="animate-pulse">
-                    <td className="py-4 px-4 sm:px-6">
-                      <div className="h-4 bg-gray-200 rounded w-28"></div>
-                    </td>
-                    <td className="py-4 px-4 sm:px-6">
-                      <div className="h-4 bg-gray-200 rounded w-40"></div>
-                    </td>
-                    <td className="py-4 px-4 sm:px-6">
-                      <div className="h-5 bg-gray-200 rounded-full w-16"></div>
-                    </td>
-                    <td className="py-4 px-4 sm:px-6">
-                      <div className="h-4 bg-gray-200 rounded w-24"></div>
-                    </td>
-                    <td className="py-4 px-4 sm:px-6">
-                      <div className="h-5 bg-gray-200 rounded-full w-14"></div>
-                    </td>
-                    <td className="py-4 px-4 sm:px-6 text-center">
-                      <div className="h-7 bg-gray-200 rounded w-20 mx-auto"></div>
-                    </td>
-                  </tr>
-                ))
-              ) : filteredUsers.length === 0 ? (
-                // Empty State
                 <tr>
                   <td colSpan="6" className="py-12 text-center text-gray-500">
-                    <div className="flex flex-col items-center justify-center">
-                      <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 mb-2">
-                        <UserIcon className="w-6 h-6" />
-                      </div>
-                      <p className="text-base font-semibold text-gray-700">
-                        No users found
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1B3A6B]"></div>
+                      <span className="text-xs font-medium">Loading registered users...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="py-12 text-center text-gray-500">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <UserIcon className="w-8 h-8 text-gray-400" />
+                      <span className="text-sm font-semibold text-gray-700">No users found</span>
+                      <p className="text-xs text-gray-400">
+                        Try adjusting your search criteria or role filters.
                       </p>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        {searchTerm || roleFilter !== 'all'
-                          ? 'Try adjusting your search query or role filter.'
-                          : 'No registered users currently found in database.'}
-                      </p>
-                      {(searchTerm || roleFilter !== 'all') && (
-                        <button
-                          onClick={() => {
-                            setSearchTerm('');
-                            setRoleFilter('all');
-                          }}
-                          className="mt-3 px-3 py-1 bg-[#1B3A6B] text-white rounded-lg text-xs font-semibold hover:bg-[#0F2044] transition-colors"
-                        >
-                          Clear Filters
-                        </button>
-                      )}
                     </div>
                   </td>
                 </tr>
               ) : (
-                // Data Rows
                 filteredUsers.map((userItem) => {
                   const isCurrentAdmin =
                     (currentUser?._id && String(currentUser._id) === String(userItem._id)) ||
                     (currentUser?.id && String(currentUser.id) === String(userItem._id));
 
                   const isStudent = userItem.role === 'student';
+                  const isMentorRole = userItem.role === 'mentor';
                   const isActive = (userItem.status || 'active') === 'active';
 
                   return (
                     <tr
                       key={userItem._id}
-                      className="hover:bg-slate-50/80 transition-colors"
+                      className="hover:bg-[#F8FAFC] transition-colors duration-150"
                     >
                       {/* Name */}
-                      <td className="py-3.5 px-4 sm:px-6 font-semibold text-[#0A1628]">
+                      <td className="py-3.5 px-4 sm:px-6 font-bold text-[#0A1628]">
                         <div className="flex items-center gap-2.5">
-                          <div className="h-8 w-8 rounded-full bg-[#D6E4F7] text-[#1B3A6B] flex items-center justify-center font-bold text-xs shrink-0">
+                          <div className="h-8 w-8 rounded-full bg-[#D6E4F7] text-[#1B3A6B] flex items-center justify-center font-extrabold text-xs">
                             {userItem.name?.charAt(0)?.toUpperCase() || 'U'}
                           </div>
                           <div>
@@ -560,10 +638,12 @@ const AdminDashboard = () => {
                           className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
                             isStudent
                               ? 'bg-blue-50 text-blue-700 border-blue-200'
+                              : isMentorRole
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                               : 'bg-purple-50 text-purple-700 border-purple-200'
                           }`}
                         >
-                          {isStudent ? '🎓 Student' : '⚙️ Admin'}
+                          {isStudent ? '🎓 Student' : isMentorRole ? '👨‍🏫 Mentor' : '⚙️ Admin'}
                         </span>
                       </td>
 
@@ -637,7 +717,157 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* 3. Recent Activity Section */}
+      {/* 3. 👨‍🏫 Mentor Management Section */}
+      <div className="mb-10 bg-white border border-[#1B3A6B]/20 rounded-3xl p-6 sm:p-8 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <h2 className="text-2xl font-bold text-[#0A1628]">👨‍🏫 Mentor Management</h2>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                {mentors.length} Mentors
+              </span>
+            </div>
+            <p className="text-gray-600 text-xs sm:text-sm mt-1">
+              Create mentor accounts, assign students to mentors, or change/remove mentor assignments.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setCreateMentorModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#1B3A6B] hover:bg-[#0F2044] text-white font-bold rounded-xl text-xs shadow-xs transition-colors cursor-pointer"
+            >
+              <UserPlusIcon className="w-4 h-4" />
+              <span>+ Create Mentor</span>
+            </button>
+
+            <button
+              onClick={() => handleOpenAssignModal()}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#EEF3FB] hover:bg-[#D6E4F7] text-[#1B3A6B] font-bold rounded-xl text-xs border border-[#1B3A6B]/20 shadow-xs transition-colors cursor-pointer"
+            >
+              <AcademicCapIcon className="w-4 h-4" />
+              <span>Assign Students</span>
+            </button>
+
+            <button
+              onClick={fetchMentors}
+              className="p-2 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-xl border border-gray-200 cursor-pointer"
+              title="Refresh Mentors"
+            >
+              <ArrowPathIcon className={`w-4 h-4 ${mentorsLoading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+        </div>
+
+        {mentorsError && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
+            {mentorsError}
+          </div>
+        )}
+
+        {/* Mentors Table */}
+        <div className="overflow-x-auto rounded-2xl border border-gray-200/80">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-[#0F2044] text-white text-xs uppercase tracking-wider font-semibold">
+                <th className="py-3.5 px-4 sm:px-6">Mentor</th>
+                <th className="py-3.5 px-4 sm:px-6">Email</th>
+                <th className="py-3.5 px-4 sm:px-6 text-center">Assigned Students</th>
+                <th className="py-3.5 px-4 sm:px-6">Assigned Students List</th>
+                <th className="py-3.5 px-4 sm:px-6 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 bg-white text-sm">
+              {mentorsLoading ? (
+                <tr>
+                  <td colSpan="5" className="py-12 text-center text-gray-500">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1B3A6B]"></div>
+                      <span className="text-xs font-medium">Loading mentors...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : mentors.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="py-12 text-center text-gray-500">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <AcademicCapIcon className="w-8 h-8 text-gray-400" />
+                      <span className="text-sm font-semibold text-gray-700">No mentors found</span>
+                      <p className="text-xs text-gray-400">
+                        Click "+ Create Mentor" above to register your first mentor account.
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                mentors.map((m) => (
+                  <tr key={m._id} className="hover:bg-[#F8FAFC] transition-colors">
+                    <td className="py-4 px-4 sm:px-6 font-bold text-[#0A1628]">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center font-extrabold text-xs shrink-0">
+                          {m.name?.charAt(0).toUpperCase() || 'M'}
+                        </div>
+                        <div>
+                          <p className="font-bold text-[#0A1628]">{m.name}</p>
+                          <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                            Mentor
+                          </span>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="py-4 px-4 sm:px-6 text-gray-600 font-mono text-xs sm:text-sm">
+                      {m.email}
+                    </td>
+
+                    <td className="py-4 px-4 sm:px-6 text-center">
+                      <span className="px-3 py-1 bg-blue-50 text-[#1B3A6B] font-extrabold text-xs rounded-full border border-blue-200">
+                        {m.assignedStudentsCount || 0} Students
+                      </span>
+                    </td>
+
+                    <td className="py-4 px-4 sm:px-6">
+                      {m.assignedStudents && m.assignedStudents.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5 max-w-md">
+                          {m.assignedStudents.map((s) => (
+                            <span
+                              key={s._id}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs bg-slate-100 text-slate-700 border border-slate-200"
+                            >
+                              <span>{s.name}</span>
+                              <button
+                                onClick={() => handleRemoveMentor(s._id)}
+                                disabled={actionStudentId === s._id}
+                                className="text-gray-400 hover:text-red-600 cursor-pointer"
+                                title={`Remove ${s.name} from mentor ${m.name}`}
+                              >
+                                <XMarkIcon className="w-3.5 h-3.5" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400 italic">No students assigned</span>
+                      )}
+                    </td>
+
+                    <td className="py-4 px-4 sm:px-6 text-right">
+                      <button
+                        onClick={() => handleOpenAssignModal(m)}
+                        className="px-3 py-1.5 bg-[#1B3A6B] hover:bg-[#0F2044] text-white text-xs font-bold rounded-xl shadow-2xs transition-colors cursor-pointer"
+                      >
+                        Manage Students
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* 4. Recent Activity Section */}
       <div className="mb-10 bg-white border border-[#1B3A6B]/20 rounded-3xl p-6 sm:p-8 shadow-sm">
         <div className="flex items-center justify-between gap-4 mb-6">
           <div>
@@ -850,65 +1080,262 @@ const AdminDashboard = () => {
         </div>
       )}
 
-      {/* 5. Admin Quick Actions */}
+      {/* 6. Create Mentor Modal */}
+      {createMentorModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-200 relative">
+            <button
+              onClick={() => setCreateMentorModalOpen(false)}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <XMarkIcon className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-6">
+              <div className="h-12 w-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-extrabold text-xl shadow-xs">
+                👨‍🏫
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-[#0A1628]">Create New Mentor</h3>
+                <p className="text-xs text-gray-500">Register a new mentor account</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleCreateMentor} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Mentor Name"
+                  value={newMentorForm.name}
+                  onChange={(e) =>
+                    setNewMentorForm({ ...newMentorForm, name: e.target.value })
+                  }
+                  className="w-full px-4 py-2.5 bg-[#F8FAFC] border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3A6B]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  required
+                  placeholder="mentor@example.com"
+                  value={newMentorForm.email}
+                  onChange={(e) =>
+                    setNewMentorForm({ ...newMentorForm, email: e.target.value })
+                  }
+                  className="w-full px-4 py-2.5 bg-[#F8FAFC] border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3A6B]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={newMentorForm.password}
+                  onChange={(e) =>
+                    setNewMentorForm({ ...newMentorForm, password: e.target.value })
+                  }
+                  className="w-full px-4 py-2.5 bg-[#F8FAFC] border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3A6B]"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setCreateMentorModalOpen(false)}
+                  className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingMentor}
+                  className="px-5 py-2.5 bg-[#1B3A6B] hover:bg-[#0F2044] text-white font-bold rounded-xl text-xs shadow transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  {creatingMentor ? 'Creating...' : 'Create Mentor'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 7. Assign Students to Mentor Modal */}
+      {assignModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-3xl w-full shadow-2xl border border-slate-200 relative max-h-[85vh] flex flex-col">
+            <button
+              onClick={() => setAssignModalOpen(false)}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <XMarkIcon className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-100 shrink-0">
+              <div className="h-12 w-12 rounded-2xl bg-blue-100 text-[#1B3A6B] flex items-center justify-center font-extrabold text-xl shadow-xs">
+                🎓
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-[#0A1628]">Assign Students to Mentors</h3>
+                <p className="text-xs text-gray-500">
+                  {selectedMentorForAssign
+                    ? `Assigning students for mentor: ${selectedMentorForAssign.name}`
+                    : 'Assign or reassign any student to a mentor'}
+                </p>
+              </div>
+            </div>
+
+            {assignmentLoading ? (
+              <div className="py-12 text-center flex-1">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1B3A6B] mx-auto"></div>
+                <p className="text-xs text-gray-500 mt-2">Loading students and mentors...</p>
+              </div>
+            ) : (
+              <div className="overflow-y-auto flex-1 pr-1 space-y-3">
+                {assignmentData.students.length === 0 ? (
+                  <p className="text-xs text-gray-500 text-center py-8">No students found.</p>
+                ) : (
+                  assignmentData.students.map((student) => {
+                    const currentMentor = student.assignedMentor;
+                    const isAssignedToThis =
+                      selectedMentorForAssign &&
+                      currentMentor?._id === selectedMentorForAssign._id;
+
+                    return (
+                      <div
+                        key={student._id}
+                        className={`p-3.5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all ${
+                          isAssignedToThis
+                            ? 'bg-emerald-50/60 border-emerald-200'
+                            : 'bg-[#F8FAFC] border-gray-200'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-[#1B3A6B] text-white flex items-center justify-center font-bold text-xs shrink-0">
+                            {student.name?.charAt(0).toUpperCase() || 'S'}
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-[#0A1628]">{student.name}</p>
+                            <p className="text-xs text-gray-500">{student.email}</p>
+                            <div className="mt-0.5">
+                              {currentMentor ? (
+                                <span className="text-[11px] font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
+                                  Mentor: {currentMentor.name}
+                                </span>
+                              ) : (
+                                <span className="text-[11px] font-semibold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-md">
+                                  No Mentor Assigned
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Mentor Selector / Assignment Actions */}
+                        <div className="flex items-center gap-2 self-end sm:self-auto">
+                          <select
+                            value={currentMentor?._id || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (val) {
+                                handleAssignStudent(student._id, val);
+                              } else {
+                                handleRemoveMentor(student._id);
+                              }
+                            }}
+                            disabled={actionStudentId === student._id}
+                            className="text-xs font-semibold px-3 py-1.5 bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1B3A6B] cursor-pointer"
+                          >
+                            <option value="">-- No Mentor --</option>
+                            {assignmentData.mentors.map((m) => (
+                              <option key={m._id} value={m._id}>
+                                👨‍🏫 {m.name}
+                              </option>
+                            ))}
+                          </select>
+
+                          {currentMentor && (
+                            <button
+                              onClick={() => handleRemoveMentor(student._id)}
+                              disabled={actionStudentId === student._id}
+                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                              title="Unassign Mentor"
+                            >
+                              <XMarkIcon className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+
+            <div className="pt-4 border-t border-gray-100 mt-4 flex justify-end shrink-0">
+              <button
+                onClick={() => setAssignModalOpen(false)}
+                className="px-5 py-2.5 bg-[#1B3A6B] hover:bg-[#0F2044] text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <h2 className="text-2xl font-bold text-[#0A1628] mb-6">Admin Quick Actions</h2>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Manage Exams Card */}
+        {/* Manage Mentors Card */}
         <div className="bg-white border border-[#1B3A6B]/20 rounded-2xl p-6 shadow-xs hover:shadow-xl hover:-translate-y-1 transition-all duration-200 flex flex-col justify-between">
           <div>
             <div className="h-12 w-12 bg-[#D6E4F7] text-[#1B3A6B] rounded-2xl flex items-center justify-center text-2xl mb-4">
-              📋
+              👨‍🏫
             </div>
-            <h3 className="text-lg font-bold text-[#0A1628] mb-2">Manage Exams</h3>
+            <h3 className="text-lg font-bold text-[#0A1628] mb-2">Manage Mentors</h3>
             <p className="text-gray-600 text-xs mb-6">
-              View, edit, or delete existing exams. Check exam duration, marks, and status.
+              Create mentor accounts, view active mentors, and oversee student mentorship assignments.
             </p>
           </div>
-          <Link
-            to="/admin/exams"
-            className="w-full text-center px-4 py-2.5 bg-[#1B3A6B] hover:bg-[#0F2044] text-white font-bold rounded-xl text-xs transition-colors shadow-xs"
+          <button
+            onClick={() => setCreateMentorModalOpen(true)}
+            className="w-full text-center px-4 py-2.5 bg-[#1B3A6B] hover:bg-[#0F2044] text-white font-bold rounded-xl text-xs transition-colors shadow-xs cursor-pointer"
           >
-            Go to Exams List
-          </Link>
+            + Create New Mentor
+          </button>
         </div>
 
-        {/* Create Exam Card */}
+        {/* Student-Mentor Assignment Card */}
         <div className="bg-white border border-[#1B3A6B]/20 rounded-2xl p-6 shadow-xs hover:shadow-xl hover:-translate-y-1 transition-all duration-200 flex flex-col justify-between">
           <div>
             <div className="h-12 w-12 bg-[#D6E4F7] text-[#2D5DA6] rounded-2xl flex items-center justify-center text-2xl mb-4">
-              ➕
+              🤝
             </div>
-            <h3 className="text-lg font-bold text-[#0A1628] mb-2">Create New Exam</h3>
+            <h3 className="text-lg font-bold text-[#0A1628] mb-2">Mentor Assignments</h3>
             <p className="text-gray-600 text-xs mb-6">
-              Configure a new examination with a title, description, time limit, and total marks.
+              Pair students with mentors so mentors can create and assign personalized exams.
             </p>
           </div>
-          <Link
-            to="/admin/exams/new"
-            className="w-full text-center px-4 py-2.5 bg-[#1B3A6B] hover:bg-[#0F2044] text-white font-bold rounded-xl text-xs transition-colors shadow-xs"
+          <button
+            onClick={() => {
+              if (mentors.length > 0) openAssignModal(mentors[0]);
+              else toast.error('Create a mentor first');
+            }}
+            className="w-full text-center px-4 py-2.5 bg-[#1B3A6B] hover:bg-[#0F2044] text-white font-bold rounded-xl text-xs transition-colors shadow-xs cursor-pointer"
           >
-            Create Exam
-          </Link>
-        </div>
-
-        {/* Manage Questions Card */}
-        <div className="bg-white border border-[#1B3A6B]/20 rounded-2xl p-6 shadow-xs hover:shadow-xl hover:-translate-y-1 transition-all duration-200 flex flex-col justify-between">
-          <div>
-            <div className="h-12 w-12 bg-[#D6E4F7] text-[#1B3A6B] rounded-2xl flex items-center justify-center text-2xl mb-4">
-              ❓
-            </div>
-            <h3 className="text-lg font-bold text-[#0A1628] mb-2">Manage Questions</h3>
-            <p className="text-gray-600 text-xs mb-6">
-              Add multiple-choice questions, set correct options, and adjust marks per question for each exam.
-            </p>
-          </div>
-          <Link
-            to="/admin/exams"
-            className="w-full text-center px-4 py-2.5 bg-[#1B3A6B] hover:bg-[#0F2044] text-white font-bold rounded-xl text-xs transition-colors shadow-xs"
-          >
-            Manage via Exams
-          </Link>
+            Assign Students
+          </button>
         </div>
 
         {/* Manage Categories Card */}
@@ -919,7 +1346,7 @@ const AdminDashboard = () => {
             </div>
             <h3 className="text-lg font-bold text-[#0A1628] mb-2">Manage Categories</h3>
             <p className="text-gray-600 text-xs mb-6">
-              Create and manage subject categories (JavaScript, React, Node.js, MongoDB, etc.).
+              Create and manage subject categories (JavaScript, React, Node.js, Python, etc.).
             </p>
           </div>
           <Link
@@ -928,6 +1355,25 @@ const AdminDashboard = () => {
           >
             Manage Categories
           </Link>
+        </div>
+
+        {/* Platform Analytics Card */}
+        <div className="bg-white border border-[#1B3A6B]/20 rounded-2xl p-6 shadow-xs hover:shadow-xl hover:-translate-y-1 transition-all duration-200 flex flex-col justify-between">
+          <div>
+            <div className="h-12 w-12 bg-[#D6E4F7] text-[#1B3A6B] rounded-2xl flex items-center justify-center text-2xl mb-4">
+              📊
+            </div>
+            <h3 className="text-lg font-bold text-[#0A1628] mb-2">Platform Analytics</h3>
+            <p className="text-gray-600 text-xs mb-6">
+              Monitor global user registrations, test attempt volumes, and platform metrics.
+            </p>
+          </div>
+          <button
+            onClick={fetchStats}
+            className="w-full text-center px-4 py-2.5 bg-[#1B3A6B] hover:bg-[#0F2044] text-white font-bold rounded-xl text-xs transition-colors shadow-xs cursor-pointer"
+          >
+            Refresh Analytics
+          </button>
         </div>
       </div>
     </div>

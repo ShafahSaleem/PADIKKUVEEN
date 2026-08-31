@@ -37,7 +37,17 @@ const adminOnly = (req, res, next) => {
   }
 };
 
+// Middleware to restrict access to mentor only
+const mentorOnly = (req, res, next) => {
+  if (req.user && req.user.role === 'mentor') {
+    next();
+  } else {
+    res.status(403).json({ message: 'Access denied. Mentor only.' });
+  }
+};
+
 module.exports = {
   protect,
   adminOnly,
+  mentorOnly,
 };

@@ -12,6 +12,7 @@ export default function Navbar() {
 
   const isStudent = user?.role === 'student';
   const isAdmin = user?.role === 'admin';
+  const isMentor = user?.role === 'mentor';
 
   const handleLogout = () => {
     logout();
@@ -68,6 +69,18 @@ export default function Navbar() {
               </>
             )}
 
+            {/* Mentor Navigation */}
+            {isMentor && (
+              <>
+                <Link
+                  to="/mentor-dashboard"
+                  className="px-3 py-2 rounded-lg text-sm font-medium text-blue-100 hover:text-white hover:bg-[#1B3A6B] transition-colors"
+                >
+                  Mentor Dashboard
+                </Link>
+              </>
+            )}
+
             {/* Admin Navigation */}
             {isAdmin && (
               <>
@@ -103,7 +116,7 @@ export default function Navbar() {
                 </span>
                 <button
                   onClick={handleLogout}
-                  className="px-3.5 py-1.5 rounded-lg text-sm font-semibold bg-[#DC2626] hover:bg-red-700 text-white transition-colors shadow-sm"
+                  className="px-3.5 py-1.5 rounded-lg text-sm font-semibold bg-[#DC2626] hover:bg-red-700 text-white transition-colors shadow-sm cursor-pointer"
                 >
                   Logout
                 </button>
@@ -174,6 +187,25 @@ export default function Navbar() {
                 className="block px-3 py-2 rounded-lg text-base font-medium text-blue-100 hover:text-white hover:bg-[#1B3A6B]"
               >
                 My Results
+              </Link>
+              <Link
+                to="/notifications"
+                onClick={() => setOpen(false)}
+                className="block px-3 py-2 rounded-lg text-base font-medium text-blue-100 hover:text-white hover:bg-[#1B3A6B]"
+              >
+                Notifications
+              </Link>
+            </>
+          )}
+
+          {isMentor && (
+            <>
+              <Link
+                to="/mentor-dashboard"
+                onClick={() => setOpen(false)}
+                className="block px-3 py-2 rounded-lg text-base font-medium text-blue-100 hover:text-white hover:bg-[#1B3A6B]"
+              >
+                Mentor Dashboard
               </Link>
               <Link
                 to="/notifications"

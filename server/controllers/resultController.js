@@ -39,55 +39,35 @@ const checkAnswerCorrectness = (studentAnswer, correctAnswer, options = []) => {
   return false;
 };
 
+const ExamAttempt = require('../models/ExamAttempt');
+
 /**
  * Submit an exam and calculate result
  */
 const submitExam = async (req, res) => {
   try {
-    console.log("🔥🔥🔥 NEW SUBMIT CONTROLLER RUNNING 🔥🔥🔥");
-    const { examId } = req.params;
-    const { answers } = req.body;
+    const { examId, attemptId } = req.params;
+    const { answers, attemptId: bodyAttemptId } = req.body;
     const studentId = req.user?.id || req.user?._id;
-
-    console.log("===== EXAM SUBMISSION =====");
-    console.log("Exam ID:", examId);
-    console.log("Student ID:", studentId);
-    console.log("Request body:", req.body);
+    const effectiveAttemptId = attemptId || bodyAttemptId;
 
     // Validate examId format
     if (!mongoose.Types.ObjectId.isValid(examId)) {
-      console.error("400 Bad Request: Invalid exam ID format:", examId);
       return res.status(400).json({ message: 'Invalid exam ID' });
     }
 
     if (!studentId) {
-      console.error("401 Unauthorized: User identity not found in token");
       return res.status(401).json({ message: 'User identity not found in token' });
     }
 
     // Find exam
     const exam = await Exam.findById(examId);
     if (!exam) {
-      console.error("404 Not Found: Exam does not exist:", examId);
       return res.status(404).json({ message: 'Exam not found' });
     }
     if (!exam.isActive) {
-      console.error("400 Bad Request: Exam is not active");
       return res.status(400).json({ message: 'Exam is not active' });
     }
-
-    // Load all current questions for the exam
-    const examQuestions = await Question.find({ exam: examId });
-    if (!examQuestions || examQuestions.length === 0) {
-      console.error("400 Bad Request: No questions found for this exam");
-      return res.status(400).json({ message: 'No questions found for this exam' });
-    }
-
-    console.log("SUBMIT EXAM");
-    console.log("Exam ID:", examId);
-    console.log("Student ID:", studentId);
-    console.log("Current questions count:", examQuestions.length);
-    console.log("Submitted answers count:", Array.isArray(answers) ? answers.length : 0);
 
     // Create lookup map for submitted answers
     const submittedAnswerMap = {};
@@ -104,50 +84,137 @@ const submitExam = async (req, res) => {
     let wrongAnswers = 0;
     let unanswered = 0;
     const answersToSave = [];
+    let totalQuestions = 0;
+    let calculatedTotalMarks = 0;
+    let targetAttempt = null;
 
-    // Evaluate against each current question in the exam
-    for (const q of examQuestions) {
-      const qIdStr = q._id.toString();
-      const rawSelected = submittedAnswerMap[qIdStr];
-      const selectedAnswer = rawSelected !== undefined && rawSelected !== null ? String(rawSelected).trim() : '';
-      const correctAnswer = (q.correctAnswer || '').trim();
-      const options = Array.isArray(q.options) ? q.options.map(opt => String(opt).trim()) : [];
-      const marks = typeof q.marks === 'number' && q.marks > 0 ? q.marks : 1;
-
-      const isCorrect = checkAnswerCorrectness(selectedAnswer, correctAnswer, options);
-
-      if (!selectedAnswer) {
-        unanswered += 1;
-      } else if (isCorrect) {
-        correctAnswers += 1;
-        score += marks;
-      } else {
-        wrongAnswers += 1;
-      }
-
-      console.log(`Evaluating Question: "${q.questionText}"`);
-      console.log(`  Student: "${selectedAnswer}" | Correct: "${correctAnswer}" | isCorrect: ${isCorrect}`);
-
-      answersToSave.push({
-        question: q._id,
-        questionText: q.questionText || '',
-        options: options,
-        correctAnswer: correctAnswer,
-        marks: marks,
-        selectedAnswer: selectedAnswer,
-        isCorrect: isCorrect,
-      });
+    // 1. If an attempt ID is provided or an active in-progress attempt exists
+    if (effectiveAttemptId && mongoose.Types.ObjectId.isValid(effectiveAttemptId)) {
+      targetAttempt = await ExamAttempt.findById(effectiveAttemptId);
+    } else {
+      targetAttempt = await ExamAttempt.findOne({
+        student: studentId,
+        exam: examId,
+        status: 'in-progress',
+      }).sort({ startedAt: -1 });
     }
 
-    const totalQuestions = examQuestions.length;
-    const calculatedTotalMarks = examQuestions.reduce(
-      (sum, q) => sum + (typeof q.marks === 'number' && q.marks > 0 ? q.marks : 1),
-      0
-    );
-    const totalMarks = exam.totalMarks && exam.totalMarks > 0 ? exam.totalMarks : calculatedTotalMarks;
+    if (targetAttempt) {
+      // Security check: verify student ownership
+      if (targetAttempt.student.toString() !== studentId.toString()) {
+        return res.status(403).json({ message: 'Forbidden: You cannot submit another student\'s attempt' });
+      }
+
+      // If attempt is already completed and has result, return existing result
+      if (targetAttempt.status === 'completed' && targetAttempt.result) {
+        const existingResult = await Result.findById(targetAttempt.result);
+        if (existingResult) {
+          return res.status(200).json({
+            message: 'Exam already submitted',
+            resultId: existingResult._id,
+            result: existingResult,
+          });
+        }
+      }
+
+      // Load original questions from database to get genuine correct answers
+      const attemptQuestionIds = targetAttempt.questions.map((q) => q.question);
+      const originalQuestions = await Question.find({ _id: { $in: attemptQuestionIds } });
+      const origQuestionMap = {};
+      originalQuestions.forEach((q) => {
+        origQuestionMap[q._id.toString()] = q;
+      });
+
+      totalQuestions = targetAttempt.questions.length;
+
+      for (const item of targetAttempt.questions) {
+        const qIdStr = item.question.toString();
+        const origQ = origQuestionMap[qIdStr];
+        const rawSelected = submittedAnswerMap[qIdStr];
+        const selectedAnswer =
+          rawSelected !== undefined && rawSelected !== null ? String(rawSelected).trim() : '';
+
+        const correctAnswer = (origQ?.correctAnswer || '').trim();
+        const options = Array.isArray(item.options) && item.options.length > 0
+          ? item.options
+          : Array.isArray(origQ?.options)
+          ? origQ.options
+          : [];
+        const marks = typeof item.marks === 'number' && item.marks > 0 ? item.marks : 1;
+        calculatedTotalMarks += marks;
+
+        const isCorrect = checkAnswerCorrectness(selectedAnswer, correctAnswer, options);
+
+        if (!selectedAnswer) {
+          unanswered += 1;
+        } else if (isCorrect) {
+          correctAnswers += 1;
+          score += marks;
+        } else {
+          wrongAnswers += 1;
+        }
+
+        answersToSave.push({
+          question: item.question,
+          questionText: item.questionText || origQ?.questionText || '',
+          options: options,
+          correctAnswer: correctAnswer,
+          marks: marks,
+          selectedAnswer: selectedAnswer,
+          isCorrect: isCorrect,
+        });
+      }
+    } else {
+      // Fallback: evaluate on all current questions for this exam
+      const examQuestions = await Question.find({ exam: examId });
+      if (!examQuestions || examQuestions.length === 0) {
+        return res.status(400).json({ message: 'No questions found for this exam' });
+      }
+
+      totalQuestions = examQuestions.length;
+
+      for (const q of examQuestions) {
+        const qIdStr = q._id.toString();
+        const rawSelected = submittedAnswerMap[qIdStr];
+        const selectedAnswer =
+          rawSelected !== undefined && rawSelected !== null ? String(rawSelected).trim() : '';
+        const correctAnswer = (q.correctAnswer || '').trim();
+        const options = Array.isArray(q.options) ? q.options.map((opt) => String(opt).trim()) : [];
+        const marks = typeof q.marks === 'number' && q.marks > 0 ? q.marks : 1;
+        calculatedTotalMarks += marks;
+
+        const isCorrect = checkAnswerCorrectness(selectedAnswer, correctAnswer, options);
+
+        if (!selectedAnswer) {
+          unanswered += 1;
+        } else if (isCorrect) {
+          correctAnswers += 1;
+          score += marks;
+        } else {
+          wrongAnswers += 1;
+        }
+
+        answersToSave.push({
+          question: q._id,
+          questionText: q.questionText || '',
+          options: options,
+          correctAnswer: correctAnswer,
+          marks: marks,
+          selectedAnswer: selectedAnswer,
+          isCorrect: isCorrect,
+        });
+      }
+    }
+
+    const totalMarks =
+      calculatedTotalMarks > 0
+        ? calculatedTotalMarks
+        : exam.totalMarks && exam.totalMarks > 0
+        ? exam.totalMarks
+        : totalQuestions;
     const percentage = totalMarks > 0 ? Number(((score / totalMarks) * 100).toFixed(2)) : 0;
 
-    // Create a NEW result document for every submission attempt
+    // Create Result document
     const result = await Result.create({
       exam: examId,
       student: studentId,
@@ -162,8 +229,16 @@ const submitExam = async (req, res) => {
       submittedAt: new Date(),
     });
 
-    console.log("NEW RESULT CREATED:", result._id.toString());
-    console.log("Score:", result.score, "/", result.totalMarks);
+    // Update attempt if present
+    if (targetAttempt) {
+      targetAttempt.status = 'completed';
+      targetAttempt.submittedAt = new Date();
+      targetAttempt.score = score;
+      targetAttempt.totalMarks = totalMarks;
+      targetAttempt.percentage = percentage;
+      targetAttempt.result = result._id;
+      await targetAttempt.save();
+    }
 
     // Automatic Notification for Result Published
     try {

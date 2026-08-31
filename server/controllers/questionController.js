@@ -47,6 +47,9 @@ const createQuestion = async (req, res) => {
 };
 
 // @desc    Get all questions for a specific exam (any authenticated user)
+const ExamAttempt = require('../models/ExamAttempt');
+
+// @desc    Get all questions for a specific exam (any authenticated user)
 // @route   GET /api/exams/:examId/questions
 // @access  protect
 const getQuestionsByExam = async (req, res) => {
@@ -58,6 +61,27 @@ const getQuestionsByExam = async (req, res) => {
     const exam = await Exam.findById(examId);
     if (!exam) {
       return res.status(404).json({ message: 'Exam not found' });
+    }
+
+    // If student, check if there's an active in-progress attempt to return its specific questions
+    if (req.user?.role === 'student') {
+      const studentId = req.user.id || req.user._id;
+      const activeAttempt = await ExamAttempt.findOne({
+        student: studentId,
+        exam: examId,
+        status: 'in-progress',
+      }).sort({ startedAt: -1 });
+
+      if (activeAttempt && activeAttempt.questions?.length > 0) {
+        const attemptQuestions = activeAttempt.questions.map((item) => ({
+          _id: item.question.toString(),
+          id: item.question.toString(),
+          questionText: item.questionText,
+          options: item.options,
+          marks: item.marks,
+        }));
+        return res.status(200).json({ questions: attemptQuestions });
+      }
     }
 
     const questions = await Question.find({ exam: examId }).select('-correctAnswer -__v');

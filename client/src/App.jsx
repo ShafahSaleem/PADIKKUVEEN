@@ -8,6 +8,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import StudentDashboard from './pages/StudentDashboard';
 import MyResults from './pages/MyResults';
+import MentorDashboard from './pages/MentorDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import ExamPage from './pages/ExamPage';
 import ExamInstructions from './pages/ExamInstructions';
@@ -55,6 +56,9 @@ function App() {
                 <Route path="/student/exams/:examId" element={<ExamPage />} />
                 <Route path="/exam/:examId" element={<ExamPage />} />
                 <Route path="/result/:resultId" element={<ResultPage />} />
+
+                {/* Mentor Routes */}
+                <Route path="/mentor-dashboard" element={<MentorDashboard />} />
 
                 {/* Admin Routes */}
                 <Route path="/admin-dashboard" element={<AdminDashboard />} />

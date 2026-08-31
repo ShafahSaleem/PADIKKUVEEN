@@ -26,6 +26,8 @@ const Login = () => {
   const redirectByRole = (user) => {
     if (user?.role === 'admin') {
       navigate('/admin-dashboard');
+    } else if (user?.role === 'mentor') {
+      navigate('/mentor-dashboard');
     } else {
       navigate('/student-dashboard');
     }

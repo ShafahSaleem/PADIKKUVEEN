@@ -62,7 +62,7 @@ const Home = () => {
 
         {user ? (
           <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
-            {user.role === 'student' ? (
+            {user.role === 'student' && (
               <>
                 <Link
                   to="/student-dashboard"
@@ -77,7 +77,18 @@ const Home = () => {
                   View My Results
                 </Link>
               </>
-            ) : (
+            )}
+            {user.role === 'mentor' && (
+              <>
+                <Link
+                  to="/mentor-dashboard"
+                  className="w-full sm:w-auto px-8 py-3.5 bg-[#1B3A6B] hover:bg-[#0F2044] text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all"
+                >
+                  Go to Mentor Dashboard
+                </Link>
+              </>
+            )}
+            {user.role === 'admin' && (
               <>
                 <Link
                   to="/admin-dashboard"

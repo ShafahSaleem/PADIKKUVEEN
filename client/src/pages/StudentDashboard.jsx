@@ -368,19 +368,28 @@ const StudentDashboard = () => {
             {filteredExams.length === 0 ? (
               /* EMPTY STATE */
               <div className="text-center py-16 bg-white rounded-3xl border border-[#1B3A6B]/20 p-8 shadow-sm max-w-lg mx-auto space-y-3">
-                <h3 className="text-lg font-bold text-[#0A1628]">No Exams Found</h3>
-                <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
-                  Try another search or choose a different subject.
-                </p>
-                <div className="pt-2">
-                  <button
-                    type="button"
-                    onClick={handleClearFilters}
-                    className="px-5 py-2.5 bg-gradient-to-r from-[#0F2044] to-[#1B3A6B] hover:from-[#0A1628] hover:to-[#0F2044] text-white font-bold rounded-xl text-xs shadow transition-all"
-                  >
-                    Clear Filters
-                  </button>
+                <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#1B3A6B] flex items-center justify-center font-bold text-xl mx-auto mb-2">
+                  📝
                 </div>
+                <h3 className="text-lg font-bold text-[#0A1628]">
+                  {exams.length === 0 ? 'No Assigned Exams' : 'No Exams Found'}
+                </h3>
+                <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
+                  {exams.length === 0
+                    ? 'No exams have been assigned to you by your mentor yet. Once your mentor assigns an exam, it will appear here.'
+                    : 'No exams match your current filter criteria.'}
+                </p>
+                {isFiltered && (
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={handleClearFilters}
+                      className="px-5 py-2.5 bg-gradient-to-r from-[#0F2044] to-[#1B3A6B] hover:from-[#0A1628] hover:to-[#0F2044] text-white font-bold rounded-xl text-xs shadow transition-all cursor-pointer"
+                    >
+                      Clear Filters
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               /* EXAM CARDS GRID */

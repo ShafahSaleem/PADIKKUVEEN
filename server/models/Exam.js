@@ -33,10 +33,21 @@ const examSchema = new mongoose.Schema(
       min: 0,
       max: 100,
     },
+    numberOfQuestions: {
+      type: Number,
+      default: null,
+      min: 1,
+    },
+    assignedStudents: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'Creator (admin) is required'],
+      required: [true, 'Creator (admin or mentor) is required'],
     },
     isActive: {
       type: Boolean,

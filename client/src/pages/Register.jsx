@@ -65,6 +65,8 @@ const Register = () => {
       toast.success(`Account ready! Welcome, ${user?.name || user?.email}!`);
       if (user?.role === 'admin') {
         navigate('/admin-dashboard');
+      } else if (user?.role === 'mentor') {
+        navigate('/mentor-dashboard');
       } else {
         navigate('/student-dashboard');
       }

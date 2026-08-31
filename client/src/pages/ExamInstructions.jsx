@@ -84,7 +84,12 @@ const ExamInstructions = () => {
 
   const duration = exam.duration || 30;
   const passingScore = exam.passingPercentage ?? 50;
-  const totalQuestions = questionsCount > 0 ? questionsCount : (exam.totalQuestions ?? 0);
+  const totalQuestions =
+    exam.numberOfQuestions && exam.numberOfQuestions > 0
+      ? exam.numberOfQuestions
+      : questionsCount > 0
+      ? questionsCount
+      : (exam.questionCount ?? exam.totalQuestions ?? 0);
   const totalMarks = exam.totalMarks || (totalQuestions * 1);
 
   return (

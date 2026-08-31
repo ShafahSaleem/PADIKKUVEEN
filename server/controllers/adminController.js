@@ -177,9 +177,237 @@ const getRecentActivity = async (req, res) => {
   }
 };
 
+const bcrypt = require('bcryptjs');
+
+/**
+ * @desc    Get all mentors and their assigned students
+ * @route   GET /api/admin/mentors
+ * @access  Private / Admin
+ */
+const getMentors = async (req, res) => {
+  try {
+    const mentors = await User.find({ role: 'mentor' })
+      .select('-password')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const mentorIds = mentors.map((m) => m._id);
+
+    // Find all assigned students for each mentor
+    const assignedStudents = await User.find({
+      role: 'student',
+      assignedMentor: { $in: mentorIds },
+    })
+      .select('_id name email avatar status assignedMentor')
+      .lean();
+
+    const studentsByMentor = {};
+    assignedStudents.forEach((student) => {
+      const mId = student.assignedMentor?.toString();
+      if (mId) {
+        if (!studentsByMentor[mId]) studentsByMentor[mId] = [];
+        studentsByMentor[mId].push({
+          _id: student._id,
+          id: student._id,
+          name: student.name,
+          email: student.email,
+          avatar: student.avatar || '',
+          status: student.status,
+        });
+      }
+    });
+
+    const enrichedMentors = mentors.map((mentor) => {
+      const sList = studentsByMentor[mentor._id.toString()] || [];
+      return {
+        ...mentor,
+        assignedStudentsCount: sList.length,
+        assignedStudents: sList,
+      };
+    });
+
+    return res.status(200).json({
+      mentors: enrichedMentors,
+    });
+  } catch (error) {
+    console.error('Error fetching mentors:', error);
+    return res.status(500).json({
+      message: 'Failed to fetch mentors',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Get all students with their assigned mentor and list of all available mentors
+ * @route   GET /api/admin/mentor-assignments
+ * @access  Private / Admin
+ */
+const getMentorAssignments = async (req, res) => {
+  try {
+    const [mentors, students] = await Promise.all([
+      User.find({ role: 'mentor' }).select('_id name email avatar').sort({ name: 1 }),
+      User.find({ role: 'student' })
+        .select('_id name email avatar status assignedMentor')
+        .populate('assignedMentor', 'name email avatar')
+        .sort({ name: 1 }),
+    ]);
+
+    return res.status(200).json({
+      mentors,
+      students,
+    });
+  } catch (error) {
+    console.error('Error fetching mentor assignments data:', error);
+    return res.status(500).json({
+      message: 'Failed to fetch mentor assignments data',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Assign or re-assign a student to a mentor
+ * @route   PUT /api/admin/students/:studentId/mentor
+ * @access  Private / Admin
+ */
+const assignStudentMentor = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const { mentorId } = req.body;
+
+    if (!mentorId) {
+      return res.status(400).json({ message: 'Mentor ID is required' });
+    }
+
+    const [student, mentor] = await Promise.all([
+      User.findOne({ _id: studentId, role: 'student' }),
+      User.findOne({ _id: mentorId, role: 'mentor' }),
+    ]);
+
+    if (!student) {
+      return res.status(404).json({ message: 'Student not found' });
+    }
+
+    if (!mentor) {
+      return res.status(404).json({ message: 'Mentor not found or user is not a mentor' });
+    }
+
+    student.assignedMentor = mentor._id;
+    await student.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Student ${student.name} successfully assigned to mentor ${mentor.name}`,
+      student: {
+        _id: student._id,
+        name: student.name,
+        email: student.email,
+        assignedMentor: {
+          _id: mentor._id,
+          name: mentor.name,
+          email: mentor.email,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Error assigning mentor:', error);
+    return res.status(500).json({
+      message: 'Failed to assign mentor',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Remove mentor assignment from a student
+ * @route   DELETE /api/admin/students/:studentId/mentor
+ * @access  Private / Admin
+ */
+const removeStudentMentor = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+
+    const student = await User.findOne({ _id: studentId, role: 'student' });
+    if (!student) {
+      return res.status(404).json({ message: 'Student not found' });
+    }
+
+    student.assignedMentor = null;
+    await student.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Mentor assignment removed for student ${student.name}`,
+    });
+  } catch (error) {
+    console.error('Error removing mentor assignment:', error);
+    return res.status(500).json({
+      message: 'Failed to remove mentor assignment',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Create a new mentor account directly by Admin
+ * @route   POST /api/admin/mentors
+ * @access  Private / Admin
+ */
+const createMentor = async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: 'Please provide name, email, and password' });
+    }
+
+    const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
+    if (existingUser) {
+      return res.status(400).json({ message: 'User with this email already exists' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const newMentor = await User.create({
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      password: hashedPassword,
+      role: 'mentor',
+      status: 'active',
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: `Mentor ${newMentor.name} created successfully`,
+      mentor: {
+        _id: newMentor._id,
+        id: newMentor._id,
+        name: newMentor.name,
+        email: newMentor.email,
+        role: newMentor.role,
+        status: newMentor.status,
+        createdAt: newMentor.createdAt,
+      },
+    });
+  } catch (error) {
+    console.error('Error creating mentor account:', error);
+    return res.status(500).json({
+      message: 'Failed to create mentor account',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getAdminStats,
   getAllUsers,
   deleteUser,
   getRecentActivity,
+  getMentors,
+  getMentorAssignments,
+  assignStudentMentor,
+  removeStudentMentor,
+  createMentor,
 };
